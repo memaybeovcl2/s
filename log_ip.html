@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Logger</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            background-color: rgba(42, 42, 42, 0.9);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        .success {
+            color: #00ff00;
+            text-align: center;
+            font-size: 1.5em;
+            margin: 30px 0;
+            padding: 15px;
+            background-color: rgba(0, 255, 0, 0.1);
+            border-radius: 5px;
+            animation: pulse 2s infinite;
+        }
+        .info-box {
+            background-color: rgba(51, 51, 51, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #00ff00;
+        }
+        .ip-address {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #ffff00;
+            text-shadow: 0 0 5px #ffff00;
+        }
+        .timestamp {
+            color: #00ffff;
+            font-size: 1.1em;
+        }
+        .statistics {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #003300;
+            color: #00ff00;
+            text-decoration: none;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            font-size: 1.1em;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+        .btn:hover {
+            background-color: #00ff00;
+            color: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 0, 0.4);
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .loading {
+            color: #ffff00;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 IP LOGGER SYSTEM</h1>
+            <p>Your connection is being monitored and logged</p>
+        </div>
+        
+        <div id="loading" class="loading">
+            <p>🔄 Detecting your IP address...</p>
+        </div>
+        
+        <div id="success" class="success" style="display: none;">
+            ✅ IP Address Successfully Logged!
+        </div>
+        
+        <div id="infoBox" class="info-box" style="display: none;">
+            <h3>📊 Connection Information:</h3>
+            <p><strong>IP Address:</strong> <span id="ipDisplay" class="ip-address"></span></p>
+            <p><strong>Timestamp:</strong> <span id="timestampDisplay" class="timestamp"></span></p>
+            <p><strong>User Agent:</strong> <span id="userAgentDisplay"></span></p>
+            <p><strong>Platform:</strong> <span id="platformDisplay"></span></p>
+            <p><strong>Browser:</strong> <span id="browserDisplay"></span></p>
+        </div>
+        
+        <div class="statistics">
+            <h3>📈 Quick Actions:</h3>
+            <a href="view_logs.html" class="btn">View Logs Terminal</a>
+            <button onclick="refreshInfo()" class="btn">Refresh Info</button>
+        </div>
+    </div>
+
+    <script>
+        // Lấy thông tin IP và thông tin trình duyệt
+        async function logIP() {
+            try {
+                // Hiển thị loading
+                document.getElementById('loading').style.display = 'block';
+                
+                // Lấy IP từ public API
+                const ipResponse = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipResponse.json();
+                const ip = ipData.ip;
+                
+                // Lấy thêm thông tin từ API khác
+                const infoResponse = await fetch(`https://ipapi.co/${ip}/json/`);
+                const infoData = await infoResponse.json();
+                
+                // Thông tin trình duyệt
+                const userAgent = navigator.userAgent;
+                const platform = navigator.platform;
+                const browser = getBrowserInfo();
+                
+                // Thời gian
+                const timestamp = new Date().toLocaleString();
+                
+                // Lưu vào localStorage để trang terminal có thể đọc
+                const logEntry = {
+                    ip: ip,
+                    timestamp: timestamp,
+                    userAgent: userAgent,
+                    platform: platform,
+                    browser: browser,
+                    city: infoData.city || 'Unknown',
+                    country: infoData.country_name || 'Unknown',
+                    isp: infoData.org || 'Unknown'
+                };
+                
+                saveLogToStorage(logEntry);
+                
+                // Hiển thị thông tin
+                displayInfo(logEntry);
+                
+            } catch (error) {
+                console.error('Error logging IP:', error);
+                document.getElementById('loading').innerHTML = 
+                    '<p style="color: #ff0000;">❌ Error detecting IP. Using fallback method.</p>';
+                
+                // Fallback: sử dụng thông tin cơ bản
+                const fallbackEntry = {
+                    ip: 'Unable to detect (Local/Private IP)',
+                    timestamp: new Date().toLocaleString(),
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    browser: getBrowserInfo(),
+                    city: 'Unknown',
+                    country: 'Unknown',
+                    isp: 'Unknown'
+                };
+                
+                saveLogToStorage(fallbackEntry);
+                displayInfo(fallbackEntry);
+            }
+        }
+        
+        function getBrowserInfo() {
+            const userAgent = navigator.userAgent;
+            if (userAgent.includes('Chrome')) return 'Chrome';
+            if (userAgent.includes('Firefox')) return 'Firefox';
+            if (userAgent.includes('Safari')) return 'Safari';
+            if (userAgent.includes('Edge')) return 'Edge';
+            return 'Unknown Browser';
+        }
+        
+        function saveLogToStorage(logEntry) {
+            // Lấy logs hiện tại từ localStorage
+            let logs = JSON.parse(localStorage.getItem('ipLogs') || '[]');
+            
+            // Thêm log mới
+            logs.unshift(logEntry);
+            
+            // Giới hạn số lượng logs (lưu 100 log gần nhất)
+            if (logs.length > 100) {
+                logs = logs.slice(0, 100);
+            }
+            
+            // Lưu lại vào localStorage
+            localStorage.setItem('ipLogs', JSON.stringify(logs));
+            localStorage.setItem('lastLog', JSON.stringify(logEntry));
+        }
+        
+        function displayInfo(logEntry) {
+            // Ẩn loading, hiển thị thông tin
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+            document.getElementById('infoBox').style.display = 'block';
+            
+            // Điền thông tin
+            document.getElementById('ipDisplay').textContent = logEntry.ip;
+            document.getElementById('timestampDisplay').textContent = logEntry.timestamp;
+            document.getElementById('userAgentDisplay').textContent = logEntry.userAgent;
+            document.getElementById('platformDisplay').textContent = logEntry.platform;
+            document.getElementById('browserDisplay').textContent = logEntry.browser;
+        }
+        
+        function refreshInfo() {
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('infoBox').style.display = 'none';
+            logIP();
+        }
+        
+        // Chạy khi trang load
+        document.addEventListener('DOMContentLoaded', logIP);
+    </script>
+</body>
+</html>
